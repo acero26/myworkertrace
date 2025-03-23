@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>无限拓展拖拽/拉伸/编辑的内容卡片</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ccffcc;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 250px;
+      background: #99cc99;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+    .main-content {
+      flex: 1;
+      padding: 20px;
+      position: relative;
+      min-height: 100vh;
+      overflow: visible;
+      background: #f5fff5;
+    }
+    .menu-btn {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      background: #669966;
+      color: white;
+      text-align: center;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+    .add-category {
+      margin-top: 20px;
+      padding-top: 10px;
+      border-top: 1px solid #fff;
+    }
+    .add-category input {
+      width: calc(100% - 20px);
+      padding: 5px;
+      margin-bottom: 5px;
+      border-radius: 3px;
+      border: 1px solid #ccc;
+    }
+    .add-category button {
+      width: 100%;
+      padding: 8px;
+      background: #336633;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    /* 卡片样式 */
+    .history-block {
+      position: absolute;
+      border: 1px solid #99cc99;
+      border-radius: 5px;
+      background: #e6ffe6;
+      min-width: 150px;
+      /* 初始高度设为自动，根据内容或拉伸确定 */
+      height: auto;
+      box-sizing: border-box;
+    }
+    /* 拖拽把手 */
+    .drag-handle {
+      background: #669966;
+      color: white;
+      padding: 5px;
+      cursor: move;
+      border-top-left-radius: 5px;
+      border-top-right-radius: 5px;
+      user-select: none;
+    }
+    /* 内容区域：双击进入编辑状态 */
+    .content-area {
+      padding: 10px;
+      cursor: text;
+      overflow: auto;
+    }
+    .content-area[contenteditable="true"] {
+      border: 1px dashed #666;
+    }
+    /* 拉伸控件 */
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #336633;
+      right: 0;
+      bottom: 0;
+      cursor: se-resize;
+    }
+    /* 新内容编辑区 */
+    #editor {
+      border: 1px dashed #669966;
+      min-height: 40px;
+      padding: 10px;
+      background: #fff;
+      margin-top: 20px;
+    }
+    .save-btn, .action-btn {
+      padding: 8px 16px;
+      background: #336633;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+    .action-btn {
+      background: #cc3333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左侧目录 -->
+    <div class="sidebar">
+      <div id="categoryButtons"></div>
+      <div class="add-category">
+        <input type="text" id="newCategoryName" placeholder="输入分类名称">
+        <button onclick="addCategory()">添加分类</button>
+      </div>
+    </div>
+    <!-- 主内容区域 -->
+    <div class="main-content" id="contentContainer">
+      <!-- 新内容编辑区 -->
+      <div id="editorArea">
+        <div id="editor" contenteditable="true"></div>
+        <button class="save-btn" onclick="saveNewContent()">保存新内容</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let categories = {};
+    let currentCategoryId = null;
+    let categoryCount = 0;
+
+    function addCategory() {
+      const input = document.getElementById('newCategoryName');
+      const name = input.value.trim();
+      if (!name) {
+        alert("请输入分类名称");
+        return;
+      }
+      categoryCount++;
+      const id = 'cat' + categoryCount;
+      categories[id] = { name: name, history: [] };
+      input.value = "";
+      renderCategories();
+      showCategory(id);
+    }
+
+    function renderCategories() {
+      const container = document.getElementById('categoryButtons');
+      container.innerHTML = "";
+      for (const id in categories) {
+        const btn = document.createElement('button');
+        btn.className = 'menu-btn';
+        btn.textContent = categories[id].name;
+        btn.onclick = () => showCategory(id);
+        container.appendChild(btn);
+      }
+    }
+
+    function showCategory(id) {
+      currentCategoryId = id;
+      const contentContainer = document.getElementById('contentContainer');
+      // 清除旧卡片（保留编辑区）
+      const oldBlocks = contentContainer.querySelectorAll('.history-block');
+      oldBlocks.forEach(b => b.remove());
+
+      categories[id].history.forEach((block, index) => {
+        const blockDiv = document.createElement('div');
+        blockDiv.className = 'history-block';
+        blockDiv.style.left = block.left || '50px';
+        blockDiv.style.top = block.top || (50 + index * 20) + 'px';
+        blockDiv.style.width = block.width || '200px';
+        if (block.height) {
+          blockDiv.style.height = block.height;
+        } else {
+          blockDiv.style.height = 'auto';
+        }
+
+        // 拖拽把手
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'drag-handle';
+        dragHandle.textContent = block.date;
+        dragHandle.onmousedown = (e) => startDrag(e, blockDiv, index);
+        blockDiv.appendChild(dragHandle);
+
+        // 内容区域
+        const contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.innerHTML = block.content;
+        contentArea.contentEditable = false;
+        contentArea.ondblclick = () => {
+          contentArea.contentEditable = true;
+          contentArea.focus();
+        };
+        contentArea.onblur = () => {
+          block.content = contentArea.innerHTML;
+          // 编辑结束后自动调整高度
+          const newHeight = contentArea.scrollHeight + dragHandle.offsetHeight + 20;
+          blockDiv.style.height = newHeight + 'px';
+          block.height = blockDiv.style.height;
+          const now = new Date();
+          block.date = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
+          dragHandle.textContent = block.date;
+          contentArea.contentEditable = false;
+        };
+        blockDiv.appendChild(contentArea);
+
+        // 拉伸控件
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'resize-handle';
+        resizeHandle.onmousedown = (e) => startResize(e, blockDiv, index);
+        blockDiv.appendChild(resizeHandle);
+
+        contentContainer.appendChild(blockDiv);
+      });
+    }
+
+    // 拖拽时，基于文档坐标计算位置，并动态扩展容器高度
+    function startDrag(e, blockDiv, index) {
+      e.preventDefault();
+      const container = document.getElementById("contentContainer");
+      const containerRect = container.getBoundingClientRect();
+      const blockRect = blockDiv.getBoundingClientRect();
+      const offsetX = e.clientX - blockRect.left;
+      const offsetY = e.clientY - blockRect.top;
+
+      function mouseMoveHandler(eMove) {
+        let newLeft = eMove.clientX - containerRect.left - offsetX;
+        let newTop = eMove.clientY - containerRect.top - offsetY;
+        blockDiv.style.left = newLeft + 'px';
+        blockDiv.style.top = newTop + 'px';
+        // 若卡片下边缘超出容器，则动态扩展容器高度
+        const cardBottom = newTop + blockDiv.offsetHeight;
+        if (cardBottom > container.offsetHeight) {
+          container.style.height = cardBottom + 40 + 'px'; // 增加额外间距
+        }
+      }
+
+      function mouseUpHandler() {
+        categories[currentCategoryId].history[index].left = blockDiv.style.left;
+        categories[currentCategoryId].history[index].top = blockDiv.style.top;
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+      }
+      document.addEventListener('mousemove', mouseMoveHandler);
+      document.addEventListener('mouseup', mouseUpHandler);
+    }
+
+    // 拉伸：调整卡片大小，结束后保存新尺寸
+    function startResize(e, blockDiv, index) {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startWidth = blockDiv.offsetWidth;
+      const startHeight = blockDiv.offsetHeight;
+
+      function mouseMoveHandler(eMove) {
+        const newWidth = startWidth + (eMove.clientX - startX);
+        const newHeight = startHeight + (eMove.clientY - startY);
+        blockDiv.style.width = newWidth + 'px';
+        blockDiv.style.height = newHeight + 'px';
+      }
+
+      function mouseUpHandler() {
+        categories[currentCategoryId].history[index].width = blockDiv.style.width;
+        categories[currentCategoryId].history[index].height = blockDiv.style.height;
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+      }
+      document.addEventListener('mousemove', mouseMoveHandler);
+      document.addEventListener('mouseup', mouseUpHandler);
+    }
+
+    // 保存新内容卡片，默认位置及尺寸
+    function saveNewContent() {
+      const editor = document.getElementById('editor');
+      const content = editor.innerHTML.trim();
+      if (!content) return;
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
+      const newBlock = {
+        date: dateStr,
+        content: content,
+        left: '50px',
+        top: '50px',
+        width: '200px',
+        height: '150px'
+      };
+      categories[currentCategoryId].history.unshift(newBlock);
+      editor.innerHTML = "";
+      showCategory(currentCategoryId);
+    }
+
+    window.onload = () => {
+      categories['cat1'] = { name: '默认分类', history: [] };
+      categoryCount = 1;
+      renderCategories();
+      showCategory('cat1');
+    };
+  </script>
+</body>
+</html>
