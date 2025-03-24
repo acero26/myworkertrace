@@ -1,0 +1,9 @@
+name = "mute-voice-37cc"              # Worker 的名称
+type = "javascript"             # 使用 JavaScript 开发
+account_id = "44ecfe3c7fa17901e2712596b1cb8432"  # Cloudflare 账户 ID
+workers_dev = true              # 是否在 workers.dev 域下部署
+
+# 如果你需要绑定 KV Namespace，请在这里添加
+[[kv_namespaces]]
+binding = "CONTENT_STORAGE"     # 在代码中引用的变量名
+id = "aafc1714519745c7a91a6ab59794deef"     # KV Namespace 的 ID
