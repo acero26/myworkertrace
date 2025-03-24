@@ -148,6 +148,33 @@
     let categories = {};
     let currentCategoryId = null;
     let categoryCount = 0;
+    async function saveNewContent() {
+  const editor = document.getElementById('editor');
+  const content = editor.innerHTML.trim();
+  if (!content || !currentCategoryId) return;
+
+  const response = await fetch("https://mute-voice-37cc.acerostay26.workers.dev/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category: currentCategoryId, content })
+  });
+
+  if (response.ok) {
+    alert("内容已保存！");
+    editor.innerHTML = "";
+    loadContent(currentCategoryId);
+  }
+}
+
+async function loadContent(category) {
+  const response = await fetch(`https://mute-voice-37cc.acerostay26.workers.dev/get?category=${category}`);
+  const data = await response.json();
+  
+  document.getElementById("content").innerHTML = data.map(
+    item => `<p><strong>${item.date}:</strong> ${item.content}</p>`
+  ).join("");
+}
+
 
     function addCategory() {
       const input = document.getElementById('newCategoryName');
