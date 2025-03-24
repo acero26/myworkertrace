@@ -148,6 +148,44 @@
     let categories = {};
     let currentCategoryId = null;
     let categoryCount = 0;
+    // 保存新内容到服务器
+async function saveNewContent() {
+  const editor = document.getElementById('editor');
+  const content = editor.innerHTML.trim();
+  if (!content || !currentCategoryId) return;
+
+  try {
+    const response = await fetch("https://my-worker-name.workers.dev/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: currentCategoryId, content: content })
+    });
+    if (response.ok) {
+      alert("内容已保存！");
+      editor.innerHTML = "";
+      loadContent(currentCategoryId); // 保存后重新加载数据
+    } else {
+      const errorMsg = await response.text();
+      alert("保存失败：" + errorMsg);
+    }
+  } catch (error) {
+    console.error("请求错误：", error);
+  }
+}
+
+// 加载指定分类的数据
+async function loadContent(category) {
+  try {
+    const response = await fetch(`https://my-worker-name.workers.dev/get?category=${category}`);
+    const data = await response.json();
+    // 此处根据你的页面结构进行展示，这里仅为示例
+    const container = document.getElementById("contentContainer");
+    container.innerHTML = data.map(item => `<div><strong>${item.date}</strong>: ${item.content}</div>`).join("");
+  } catch (error) {
+    console.error("加载数据失败：", error);
+  }
+}
+
     async function saveNewContent() {
   const editor = document.getElementById('editor');
   const content = editor.innerHTML.trim();
