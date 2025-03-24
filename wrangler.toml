@@ -9,6 +9,5 @@ zone_id = ""
 binding = "CONTENT_STORAGE"     # 在代码中引用的变量名
 id = "aafc1714519745c7a91a6ab59794deef"     # KV Namespace 的 ID
 
-[[kv_namespaces]]
 binding = "CREATIVE_CONTENT"
 id = "973540f1107e43beaed95c75baed0308"
