@@ -155,7 +155,7 @@ async function saveNewContent() {
   if (!content || !currentCategoryId) return;
 
   try {
-    const response = await fetch("https://my-worker-name.workers.dev/save", {
+    const response = await fetch("https://mute-voice-37cc.acerostay26.workers.dev/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category: currentCategoryId, content: content })
